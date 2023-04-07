@@ -1,0 +1,17 @@
+program s2023;
+//This program computes and prints the values
+        of a given expression //
+var
+  // decalre variables
+  p1 ,  p2q ,   pr  :integer ;
+begin
+  //initalize variables
+  p1    =33;
+  p2q =         412;
+  pr=p1 +p2q;
+  display ( pr ) ; // display pr
+  // compute the values of the
+    following expression//
+  pr = pr1 * (p2q+ 2*pr)        ;
+  display ("value=",    pr  ) ; // print the value
+end.
