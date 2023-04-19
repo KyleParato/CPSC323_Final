@@ -14,7 +14,12 @@ cmp323::cmp323(){
     std::ifstream clean_file;
     clean_file.open("finalp2.txt");
     set_up_indexs();
-    trace_file(clean_file);
+    if(trace_file(clean_file)){
+        std::ifstream from;
+        from.open("finalp2.txt");
+        std::ofstream cpp_file ("finalp.cpp", std::ofstream::trunc);
+        translate_file(from, cpp_file);
+    }
 }
 
 cmp323::cmp323(std::string input_file){
@@ -73,7 +78,7 @@ void cmp323::set_up_indexs(){
     col_index.insert(std::pair<std::string,int>(";", 22));
     col_index.insert(std::pair<std::string,int>(",", 23));
     col_index.insert(std::pair<std::string,int>("display",    24));
-    col_index.insert(std::pair<std::string,int>("\"value=\",", 25));
+    col_index.insert(std::pair<std::string,int>("\"value=\"", 25));
     col_index.insert(std::pair<std::string,int>("program",    26));
     col_index.insert(std::pair<std::string,int>("begin",      27));
     col_index.insert(std::pair<std::string,int>("var",        28));
@@ -92,7 +97,7 @@ void cmp323::set_up_indexs(){
     table_meaning.insert(std::pair<int,std::string>(112, "<write>"));
     table_meaning.insert(std::pair<int,std::string>(113, "<assign>"));
     table_meaning.insert(std::pair<int,std::string>(114, "display ( <write>"));
-    table_meaning.insert(std::pair<int,std::string>(115, "\"value=\", <write>"));
+    table_meaning.insert(std::pair<int,std::string>(115, "\"value=\" , <write>"));
     table_meaning.insert(std::pair<int,std::string>(116, "<identifier> ) ;"));
     table_meaning.insert(std::pair<int,std::string>(117, "<identifier> = <expr> ;"));
     table_meaning.insert(std::pair<int,std::string>(118, "<term> <Q>"));
@@ -126,13 +131,15 @@ void cmp323::set_up_indexs(){
 
     //errors
     table_meaning.insert(std::pair<int,std::string>(201, "program is expected\n"));
+    table_meaning.insert(std::pair<int,std::string>(204, "end. is expected\n"));
     table_meaning.insert(std::pair<int,std::string>(321, ": is missing\n"));
     table_meaning.insert(std::pair<int,std::string>(322, "; is missing\n"));
+    table_meaning.insert(std::pair<int,std::string>(323, ", is missing\n"));
+    
 
 }
 
 void cmp323::clean_code(std::ifstream& input_file, std::ofstream& output_file){
-    std::cout << "Called clean code\n";
     //clean code
     std::string temp;
     std::vector<std::string> all_lines;
@@ -213,14 +220,18 @@ void cmp323::clean_code(std::ifstream& input_file, std::ofstream& output_file){
 
 }
 
-void cmp323::trace_file(std::ifstream& file){
+bool cmp323::trace_file(std::ifstream& file){
     bool accepted = true;
+    bool read_var = true;
     std::string current_token;
     trace_stack.empty();
-    //trace_stack.push("end.");
     trace_stack.push("<prog>");
     while(file >> current_token){
-        std::cout << "Read: " << current_token << "\n"; 
+        //std::cout << "Read: " << current_token << "\n"; 
+        // store vars
+        if(current_token == "begin" && read_var == true){
+            read_var = false;
+        }
         // find col
         int col;
         bool is_keyword = false;
@@ -232,14 +243,22 @@ void cmp323::trace_file(std::ifstream& file){
                 break;
             }
         }
+        // is var
+        bool is_var = false;
+        for(auto i : var_list){
+            if(i == current_token){
+                is_var = true;
+                break;
+            }
+        }
         bool match = false;
         if(is_keyword){
             while(!match){
                 std::string top = trace_stack.top();
-                std::cout << "Pop: " << top << "\n";
+                //std::cout << "Pop: " << top << "\n";
                 trace_stack.pop();
                 if(top == current_token){
-                    std::cout << "  Match: " << top << "\n";
+                    //std::cout << "  Match: " << top << "\n";
                     match = true;
                     continue;
                 }
@@ -248,27 +267,33 @@ void cmp323::trace_file(std::ifstream& file){
                     accepted = false;
                     break;
                 }
+                //std::cout << table[row][col] << "\n";
+                if(table[row][col] > 199 && table[row][col] < 899){
+                        //std::cout << table_to_string(row, col);
+                        accepted = false;
+                        break;
+                }
                 if(table[row][col] == 999){
                     continue;
                 }
-                std::cout << "  [ " << top << ", " << current_token << " ] = " << table[row][col] << "\n";
+                //std::cout << "  [ " << top << ", " << current_token << " ] = " << table[row][col] << "\n";
                 str_to_stack(table_to_string(row, col));
-                print_stack();
+                //print_stack();
             }
         }
         else{
             for(char c : current_token){
                 std::string curent_character = "";
                 curent_character += c;
-                std::cout << "  Read: " << curent_character << "\n";
+                //std::cout << "  Read: " << curent_character << "\n";
                 col = str_to_col(curent_character);
                 match = false;
                 while(!match){
                     std::string top = trace_stack.top();
-                    std::cout << "Pop: " << top << "\n";
+                    //std::cout << "Pop: " << top << "\n";
                     trace_stack.pop();
                     if(top == curent_character){
-                        std::cout << "  Match: " << top << "\n";
+                        //std::cout << "  Match: " << top << "\n";
                         match = true;
                         continue;
                     }
@@ -278,23 +303,97 @@ void cmp323::trace_file(std::ifstream& file){
                         break;
                     }
                     if(table[row][col] > 199 && table[row][col] < 899){
-                        std::cout << table_to_string(row, col);
+                        //std::cout << table_to_string(row, col);
+                        accepted = false;
+                        break;
                     }
                     if(table[row][col] == 999){
                         continue;
                     }
-                    std::cout << "  [ " << top << ", " << curent_character << " ] = " << table[row][col] << "\n";
+                    //std::cout << "  [ " << top << ", " << curent_character << " ] = " << table[row][col] << "\n";
                     str_to_stack(table_to_string(row, col));
-                    print_stack();
+                    //print_stack();
                 }
                 if(accepted == false) break;
             }
+            if(accepted){
+                if(current_token.at(0) == 'p' || current_token.at(0) == 'q' || current_token.at(0) == 'r' || current_token.at(0) == 's'){
+                    if(read_var == false){
+                        bool in_list = false;
+                        for(auto i : var_list){
+                            if(i == current_token){
+                                in_list = true;
+                                break;
+                            }
+                        }
+                        if(in_list == false){
+                            accepted = false;
+                            //std::cout << "Unkown identifier->" << current_token << "\n";
+                        }
+                    }
+                    else if(read_var == true){
+                        var_list.push_back(current_token);
+                    }
+                    else{
+                        //std::cout << "Unkown identifier->" << current_token << "\n";
+                        accepted = false;
+                    }
+                    
+                }
+            }
+        
         }
         if(accepted == false) break;
     }
-    if(!accepted){std::cout << "File not accepted\n";}
+    if(!accepted){
+        std::cout << "File not accepted\n";
+        return accepted;
+        // for(auto i : var_list){
+        //     std::cout << i << "\n";
+        // }
+    }
     else {
         std::cout << "File accepted\n";
+        return accepted;
+        // for(auto i : var_list){
+        //     std::cout << i << "\n";
+        // }
+    }
+}
+
+void cmp323::translate_file(std::ifstream& input_file, std::ofstream& output_file){
+    output_file << "#include <iostream>\nusing namespace std;\nint main(){\n";
+    std::string temp = var_list.at(0);
+    var_list.at(0) = var_list.at(var_list.size() -1);
+    var_list.pop_back();
+    for(auto i : var_list){
+        output_file << "int " << i << ";\n";
+    }
+    // read till begin
+    while(input_file >> temp){
+        if(temp == "begin") break;
+    }
+    while(std::getline(input_file, temp)){
+        if(temp.find("display") != std::string::npos){
+            if(temp.find("\"value=\"") != std::string::npos){
+                output_file << "std::cout << \"value=\" << ";
+            }
+            else output_file << "std::cout << ";
+            for(auto i : var_list){
+                if(temp.find(i) != std::string::npos){
+                    temp = i;
+                    break;
+                }
+            }
+            output_file << temp << "<< \"\\n\" ;\n"; 
+        }
+        else if(temp.find("end.")!= std::string::npos){
+            output_file << "return 0;\n}\n";
+            break;
+        }
+        else{
+            output_file << temp;
+        }
     }
 }
 
@@ -334,18 +433,14 @@ void cmp323::str_to_stack(std::string input){
     }
 }
 
-void cmp323::trace_line(std::string line){
-    std::cout << "Trace: " << line;
-}
-
 int cmp323::str_to_row(std::string input){
     //std::cout << input << "length: " << input.length() << "\n";
     auto in_map = row_index.find(input);
     if(in_map != row_index.end()){
         return in_map->second;
     }
-    std::cout << "Something wrong with convert string to row\n";
-    std::cout << input << " is missing\n";
+    //std::cout << "Something wrong with convert string to row\n";
+    std::cout << input << " is missing or expected\n";
     exit(0);
     return -1;
 }
@@ -370,8 +465,4 @@ std::string cmp323::table_to_string(int row, int col){
     std::cout << "Coordinates: " << row << ", " << col << "\n";
     exit(0);
     return "";
-}
-
-inline void erro(std::string& s){
-    throw std::runtime_error(s);
 }
