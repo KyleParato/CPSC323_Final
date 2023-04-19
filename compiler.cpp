@@ -367,7 +367,7 @@ void cmp323::translate_file(std::ifstream& input_file, std::ofstream& output_fil
     var_list.at(0) = var_list.at(var_list.size() -1);
     var_list.pop_back();
     for(auto i : var_list){
-        output_file << "int " << i << ";\n";
+        output_file << "    int " << i << ";\n";
     }
     // read till begin
     while(input_file >> temp){
@@ -376,9 +376,9 @@ void cmp323::translate_file(std::ifstream& input_file, std::ofstream& output_fil
     while(std::getline(input_file, temp)){
         if(temp.find("display") != std::string::npos){
             if(temp.find("\"value=\"") != std::string::npos){
-                output_file << "std::cout << \"value=\" << ";
+                output_file << "    std::cout << \"value=\" << ";
             }
-            else output_file << "std::cout << ";
+            else output_file << "    std::cout << ";
             for(auto i : var_list){
                 if(temp.find(i) != std::string::npos){
                     temp = i;
@@ -388,11 +388,11 @@ void cmp323::translate_file(std::ifstream& input_file, std::ofstream& output_fil
             output_file << temp << "<< \"\\n\" ;\n"; 
         }
         else if(temp.find("end.")!= std::string::npos){
-            output_file << "return 0;\n}\n";
+            output_file << "    return 0;\n}\n";
             break;
         }
         else{
-            output_file << temp;
+            output_file << "    " << temp;
         }
     }
 }
