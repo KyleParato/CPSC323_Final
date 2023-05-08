@@ -1,3 +1,4 @@
+// Kyle Parato - compiler.cpp
 #include <iostream>
 #include <fstream>
 #include <exception>
@@ -21,17 +22,9 @@ cmp323::cmp323(){
         translate_file(from, cpp_file);
     }
 }
-
-cmp323::cmp323(std::string input_file){
-    std::ifstream file;
-    file.open(input_file);
-    if(!file.is_open()){throw "File Not Found";}
-    std::string output_file_name = input_file.substr(0,input_file.length()-4) + ".cmp323";
-    std::ofstream output_file (output_file_name);
-    clean_code(file, output_file);
-}
-
+// sets up conversion functions for string to row/col, and table int to string
 void cmp323::set_up_indexs(){
+    // row string to row number
     row_index.insert(std::pair<std::string,int>("<prog>",       0));
     row_index.insert(std::pair<std::string,int>("<identifier>", 1));
     row_index.insert(std::pair<std::string,int>("<I>",          2));
@@ -52,7 +45,7 @@ void cmp323::set_up_indexs(){
     row_index.insert(std::pair<std::string,int>("<sign>",      17));
     row_index.insert(std::pair<std::string,int>("<digit>",     18));
     row_index.insert(std::pair<std::string,int>("<letter>",    19));
-
+    // column string to column number
     col_index.insert(std::pair<std::string,int>("0", 0));
     col_index.insert(std::pair<std::string,int>("1", 1));
     col_index.insert(std::pair<std::string,int>("2", 2));
@@ -84,13 +77,13 @@ void cmp323::set_up_indexs(){
     col_index.insert(std::pair<std::string,int>("var",        28));
     col_index.insert(std::pair<std::string,int>("end.",        29));
     col_index.insert(std::pair<std::string,int>("integer",    30));
-
+    // table number to string, rules
     table_meaning.insert(std::pair<int,std::string>(101, "program <identifier> ; var <dec-list> begin <stat-list> end."));
     table_meaning.insert(std::pair<int,std::string>(102, "<letter> <I>"));
     table_meaning.insert(std::pair<int,std::string>(103, "<letter> <I>"));
     table_meaning.insert(std::pair<int,std::string>(104, "<digit> <I>"));
     table_meaning.insert(std::pair<int,std::string>(106, "<dec> : <type> ;"));
-    table_meaning.insert(std::pair<int,std::string>(107, ", <dec>"));
+    table_meaning.insert(std::pair<int,std::string>(107, ", <identifier> <dec>"));
     table_meaning.insert(std::pair<int,std::string>(108, "<identifier> <dec>"));
     table_meaning.insert(std::pair<int,std::string>(109, "integer"));
     table_meaning.insert(std::pair<int,std::string>(111, "<stat> <stat-list>"));
@@ -129,97 +122,77 @@ void cmp323::set_up_indexs(){
     table_meaning.insert(std::pair<int,std::string>(148, "r"));
     table_meaning.insert(std::pair<int,std::string>(149, "s"));
 
-    //errors
+    // error messages from table
     table_meaning.insert(std::pair<int,std::string>(201, "program is expected\n"));
+    table_meaning.insert(std::pair<int,std::string>(203, "begin is expected\n"));
     table_meaning.insert(std::pair<int,std::string>(204, "end. is expected\n"));
+    table_meaning.insert(std::pair<int,std::string>(207, "integer is expected\n"));
     table_meaning.insert(std::pair<int,std::string>(321, ": is missing\n"));
     table_meaning.insert(std::pair<int,std::string>(322, "; is missing\n"));
     table_meaning.insert(std::pair<int,std::string>(323, ", is missing\n"));
-    
-
+    table_meaning.insert(std::pair<int,std::string>(350, "expecting identifier\n"));
+    table_meaning.insert(std::pair<int,std::string>(351, "identifier must start with letter\n"));
+    table_meaning.insert(std::pair<int,std::string>(401, "unkown character\n"));
+    table_meaning.insert(std::pair<int,std::string>(402, "expecting operation before (\n"));
+    table_meaning.insert(std::pair<int,std::string>(403, "missing operand\n"));
+    table_meaning.insert(std::pair<int,std::string>(410, "cannot perform operations while declaring variables\n"));
+    table_meaning.insert(std::pair<int,std::string>(411, "cannot assign while declaring variables\n"));
 }
-
+// cleans code, removes comments and extra whitespacing, properly spaces out tokens
 void cmp323::clean_code(std::ifstream& input_file, std::ofstream& output_file){
-    //clean code
+    std::string token;
     std::string temp;
-    std::vector<std::string> all_lines;
-    while (getline(input_file, temp))
-    {
-        all_lines.push_back(temp);
-    }
-    int line_num = all_lines.size();
-    for(int i = 0; i < line_num; i++){
-        
-        // contains comment
-        if(all_lines.at(i).find("//") != std::string::npos){
-            all_lines.at(i) = all_lines.at(i).substr(0,all_lines.at(i).find("//"));
-            
-            // // on next line
-            if(all_lines.at(i+1).find("//") != std::string::npos){
-                all_lines.at(i+1) = all_lines.at(i+1).substr(all_lines.at(i+1).find("//"));
+    std::string output;
+    while(input_file >> token){
+        // removes comments
+        if(token.find("//") != std::string::npos){
+            input_file >> token;
+            while(token.find("//") == std::string::npos){
+                input_file >> token;
             }
+            continue;
         }
-        // seperate ; to new line
-        if(all_lines.at(i).back() != '\n'){
-            all_lines.at(i) += '\n';
-        }
-        // // remove spaces and add spaces before and after non terminal
-        std::string remove_first_spaces = "";
-        if(all_lines.at(i).length() > 1){
-            // add spaces
-            for(int ii = 1; ii < all_lines.at(i).length(); ii++){
+        else{
+            for(int i = 0; i < token.length(); i++){
                 for(char nonterm : spacing_nonterminals){
-                    if(all_lines.at(i).at(ii) == '\"'){
-                        ii++;
-                        while(all_lines.at(i).at(ii) != '\"'){
-                            ii++;
+                    if(token.at(i) == '\"'){
+                        i++;
+                        while(token.at(i) != '\"'){
+                            i++;
                         }
-                        ii++;
+                        i++;
                     }
-                    if(all_lines.at(i).at(ii) == nonterm){
-                        remove_first_spaces = all_lines.at(i).substr(0,ii);
-                        remove_first_spaces += " ";
-                        remove_first_spaces += all_lines.at(i).at(ii);
-                        remove_first_spaces += " ";
-                        remove_first_spaces += all_lines.at(i).substr(ii+1);
-                        all_lines.at(i) = remove_first_spaces;
-                        ii++;
+                    // add space if nonterminal
+                    if(token.at(i) == nonterm){
+                        temp = token.substr(0,i);
+                        temp += " ";
+                        temp += token.at(i);
+                        temp += " ";
+                        temp += token.substr(i+1);
+                        token = temp;
+                        i++;
                     }
                 }
             }
-            // remove spaces
-            // remove spaces at front
-            while (all_lines.at(i).at(0) == ' '){
-                remove_first_spaces = all_lines.at(i).substr(1);
-                all_lines.at(i) = remove_first_spaces;
+            output += token + " ";
+            if(token.find(";") != std::string::npos || token == "var" || token == "begin"){
+                output += "\n";
             }
-            // remove spaces at back
-            while (all_lines.at(i).at(all_lines.at(i).length() -1) == ' '){
-                remove_first_spaces = all_lines.at(i).substr(0, all_lines.at(i).length() - 1);
-                all_lines.at(i) = remove_first_spaces;
-            }
-            // remove exta spaces
-            for(int ii = 1; ii <= all_lines.at(i).length() -1; ii++){
-                if(all_lines.at(i).at(ii) == ' ' && all_lines.at(i).at(ii-1) == ' '){
-                    remove_first_spaces = all_lines.at(i).substr(ii);
-                    all_lines.at(i) = all_lines.at(i).substr(0,ii-1);
-                    all_lines.at(i) += remove_first_spaces;
-                    ii--;
-                }
-            // // step by step
-            // output_file << all_lines.at(i);
-            }
-
         }
-        
-        if(all_lines.at(i) != "\n"){
-            output_file << all_lines.at(i);
-        }
-        
     }
-
+    // remove excess spaces
+    for(int i = 1; i < output.length(); i++){
+        if(output.at(i) == ' ' && output.at(i-1) == ' '){
+            temp = output.substr(i);
+            output = output.substr(0,i-1);
+            output += temp;
+            i--;
+        }
+    }
+    output_file << output;
 }
 
+// traces file token by token
 bool cmp323::trace_file(std::ifstream& file){
     bool accepted = true;
     bool read_var = true;
@@ -235,7 +208,7 @@ bool cmp323::trace_file(std::ifstream& file){
         // find col
         int col;
         bool is_keyword = false;
-        // is keyword
+        // checks if token is keyword
         for(auto i : keywords){
             if(i == current_token){
                 col = str_to_col(current_token);
@@ -243,7 +216,7 @@ bool cmp323::trace_file(std::ifstream& file){
                 break;
             }
         }
-        // is var
+        // checks if token is variable
         bool is_var = false;
         for(auto i : var_list){
             if(i == current_token){
@@ -269,7 +242,7 @@ bool cmp323::trace_file(std::ifstream& file){
                 }
                 //std::cout << table[row][col] << "\n";
                 if(table[row][col] > 199 && table[row][col] < 899){
-                        //std::cout << table_to_string(row, col);
+                        std::cout << table_to_string(row, col);
                         accepted = false;
                         break;
                 }
@@ -302,10 +275,15 @@ bool cmp323::trace_file(std::ifstream& file){
                         accepted = false;
                         break;
                     }
-                    if(table[row][col] > 199 && table[row][col] < 899){
-                        //std::cout << table_to_string(row, col);
+                    if(table[row][col] > 199 && table[row][col] < 599){
+                        std::cout << table_to_string(row, col);
                         accepted = false;
                         break;
+                    }
+                    if(table[row][col] >499 && table[row][col] < 899){
+                        std::cout << "Error: " << table[row][col] << "\n";
+                        std::cout << "Exiting program\n";
+                        exit(0);
                     }
                     if(table[row][col] == 999){
                         continue;
@@ -328,39 +306,31 @@ bool cmp323::trace_file(std::ifstream& file){
                         }
                         if(in_list == false){
                             accepted = false;
-                            //std::cout << "Unkown identifier->" << current_token << "\n";
+                            std::cout << "Unkown identifier->" << current_token << "\n";
                         }
                     }
                     else if(read_var == true){
                         var_list.push_back(current_token);
                     }
                     else{
-                        //std::cout << "Unkown identifier->" << current_token << "\n";
+                        std::cout << "Unkown identifier->" << current_token << "\n";
                         accepted = false;
                     }
-                    
                 }
             }
-        
         }
         if(accepted == false) break;
     }
     if(!accepted){
         std::cout << "File not accepted\n";
         return accepted;
-        // for(auto i : var_list){
-        //     std::cout << i << "\n";
-        // }
     }
     else {
         std::cout << "File accepted\n";
         return accepted;
-        // for(auto i : var_list){
-        //     std::cout << i << "\n";
-        // }
     }
 }
-
+// converts code into c++ code
 void cmp323::translate_file(std::ifstream& input_file, std::ofstream& output_file){
     output_file << "#include <iostream>\nusing namespace std;\nint main(){\n";
     std::string temp = var_list.at(0);
@@ -369,34 +339,38 @@ void cmp323::translate_file(std::ifstream& input_file, std::ofstream& output_fil
     for(auto i : var_list){
         output_file << "    int " << i << ";\n";
     }
-    // read till begin
+    // read till begin token
     while(input_file >> temp){
         if(temp == "begin") break;
     }
-    while(std::getline(input_file, temp)){
-        if(temp.find("display") != std::string::npos){
-            if(temp.find("\"value=\"") != std::string::npos){
-                output_file << "    std::cout << \"value=\" << ";
-            }
-            else output_file << "    std::cout << ";
-            for(auto i : var_list){
-                if(temp.find(i) != std::string::npos){
-                    temp = i;
-                    break;
-                }
-            }
-            output_file << temp << "<< \"\\n\" ;\n"; 
-        }
-        else if(temp.find("end.")!= std::string::npos){
-            output_file << "    return 0;\n}\n";
+    output_file << "    ";
+    while(input_file >> temp){
+        if(temp == "end."){
+            output_file << "return 0;\n}\n";
             break;
         }
+        else if(temp == "display"){
+            output_file << "std::cout << ";
+            input_file >> temp;
+            input_file >> temp;
+            if(temp == "\"value=\""){
+                output_file << "\"value=\" << ";
+                input_file >> temp;
+                input_file >> temp;
+            }
+            output_file << temp + " << \"\\n\";\n    ";
+            input_file >> temp;
+            input_file >> temp;
+        }
+        else if(temp == ";"){
+            output_file <<temp << "\n" << "    ";
+        }
         else{
-            output_file << "    " << temp;
+            output_file << temp;
         }
     }
 }
-
+// prints content of stack
 void cmp323::print_stack(){
     std::cout << "  Stack: ";
     std::stack<std::string> temp1 = trace_stack;
@@ -411,18 +385,16 @@ void cmp323::print_stack(){
     }
     std::cout << "\n";
 }
-
+// pushes string onto stack, words in reverse order
 void cmp323::str_to_stack(std::string input){
     std::stack<std::string> temp;
     std::string temp_str = "";
     for(char c : input){
         if(c != ' '){
             temp_str += c;
-            //std::cout << temp_str << "+=" << c << "\n";
-            }
+        }
         else{
             temp.push(temp_str);
-            //std::cout << temp_str << "\n";
             temp_str = "";
         }
     }
@@ -432,29 +404,25 @@ void cmp323::str_to_stack(std::string input){
         temp.pop();
     }
 }
-
+// converts string to row index
 int cmp323::str_to_row(std::string input){
-    //std::cout << input << "length: " << input.length() << "\n";
     auto in_map = row_index.find(input);
     if(in_map != row_index.end()){
         return in_map->second;
     }
-    //std::cout << "Something wrong with convert string to row\n";
     std::cout << input << " is missing or expected\n";
     exit(0);
     return -1;
 }
-
+// converts string to column index
 int cmp323::str_to_col(std::string input){
     auto in_map = col_index.find(input);
     if(in_map != col_index.end()){
         return in_map->second;
     }
-    //std::cout << "Something wrong with convert string to col\n";
-    //exit(0);
-    return 31;
+    return 31; // unknown token
 }
-
+// convets table content to string
 std::string cmp323::table_to_string(int row, int col){
     int table_value = table[row][col];
     auto in_map = table_meaning.find(table_value);
