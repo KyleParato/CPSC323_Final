@@ -1,0 +1,21 @@
+Welcome, all code is in the Compiler directory and all relevant pdfs for the report and in the 323_Report folder.
+-Compile
+To compile and run the project, use the 323FinalBuild.sh script.
+-Run
+To run the project, you can run the cmp323.out file or use the compiler.sh script.
+I recommend using the compiler.sh script as it runs the compiler and then prompts for 
+compiling/running the c++ output file.
+
+-List of all Files
+  -project files - all files necessary for the project to work
+	-compiler.hpp
+	-compiler.cpp
+	-main.cpp
+	-finalp1.txt
+	-finalp2.txt
+	-finalp.cpp
+  -Scripts
+	-323Build.sh - compiles and runs project
+	-compiler.sh - runs project
+  -executable object file
+	-cmp323.out
